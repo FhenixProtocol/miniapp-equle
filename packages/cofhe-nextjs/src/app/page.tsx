@@ -7,7 +7,7 @@ import { NumberleGame } from "./components/NumberleGame";
 import { DisconnectedScreen } from "./components/DisconnectedScreen";
 import { MonitorFrame } from "./components/MonitorFrame";
 import { Footer } from "./components/Footer";
-import { useAccount } from "wagmi";
+import { useAccount, useBalance } from "wagmi";
 import { useMiniKit } from "@coinbase/onchainkit/minikit";
 import { sdk } from "@farcaster/miniapp-sdk";
 import { Navbar } from "./components/Navbar";
@@ -20,10 +20,16 @@ import { VirtualKeyboardSkeleton } from "./components/VirtualKeyboardSkeleton";
 import { FHEModal } from "./components/FHEModal";
 import { useEffect, useState } from "react";
 import { usePermit } from "./hooks/usePermit";
+import Link from "next/link";
+import { baseSepolia } from "viem/chains";
 
 export default function Home() {
   const { setFrameReady, isFrameReady } = useMiniKit();
   const { address, isConnected } = useAccount();
+  const { data: balance } = useBalance({
+    address: address,
+    chainId: baseSepolia.id,
+  });
   const { isInitialized: isCofheInitialized } = useCofheStore();
   const { gameId: currentGameId } = useCurrentGameId();
   const {
@@ -40,6 +46,9 @@ export default function Home() {
     validateAndSync,
   } = useGameStateValidator(address, currentGameId);
   const [showFHE, setShowFHE] = useState(false);
+
+  // Check if ETH balance is exactly 0
+  const isOutOfETH = balance?.value === BigInt(0);
 
   useEffect(() => {
     const initializeMiniApp = async () => {
@@ -112,6 +121,31 @@ export default function Home() {
                 <p className="text-white text-xl font-visitor1 uppercase tracking-widest">
                   Game <span style={{ color: "#0AD9DC" }}>{currentGameId}</span>
                 </p>
+              </div>
+            )}
+
+            {/* ETH Balance Warning */}
+            {isConnected && isOutOfETH && (
+              <div className="text-center mb-4 px-4">
+                <div
+                  className="inline-block px-6 py-3 rounded-lg"
+                  style={{
+                    backgroundColor: "rgba(220, 53, 69, 0.1)",
+                    border: "2px solid #DC3545",
+                  }}
+                >
+                  <p className="text-red-400 text-sm font-visitor1 uppercase tracking-wide">
+                    ⚠️ It seems like you&apos;re out of ETH to play the game
+                  </p>
+                  <Link
+                    href="https://portal.cdp.coinbase.com/products/faucet"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="text-white text-xs underline hover:opacity-80 transition-opacity duration-200 mt-2 inline-block"
+                  >
+                    Get some testnet ETH here →
+                  </Link>
+                </div>
               </div>
             )}
 

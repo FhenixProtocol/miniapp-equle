@@ -13,6 +13,7 @@ import { VirtualKeyboardSkeleton } from "../components/VirtualKeyboardSkeleton";
 import { useEffect, useState } from "react";
 import { NFT_ADDRESS, NFT_CONTRACT_ABI } from "../../../contract/contract";
 import { GuessDistributionModal } from "../components/GuessDistributionModal";
+import Link from "next/link";
 
 export default function StatsPage() {
   const { setFrameReady, isFrameReady } = useMiniKit();
@@ -69,8 +70,17 @@ export default function StatsPage() {
 
             <div className="mt-8">
               <>
-                {/* Page Title outside monitor frame */}
-                <div className="mb-4 text-center">
+                {/* Page Title with Back Button */}
+                <div className="mb-4 relative flex items-center justify-center">
+                  {isConnected && (
+                    <Link
+                      href="/"
+                      className="absolute left-0 text-white text-xl hover:opacity-80 transition-opacity duration-200"
+                      style={{ color: "#0AD9DC" }}
+                    >
+                      ←
+                    </Link>
+                  )}
                   <p className="text-white text-xl font-visitor1 uppercase tracking-widest">
                     Your Status
                   </p>
@@ -156,7 +166,7 @@ export default function StatsPage() {
                           onClick={() => setIsGuessModalOpen(true)}
                           className="mx-auto block w-full max-w-xs px-5 py-2 bg-white text-black uppercase tracking-widest text-xs sm:text-sm font-bold hover:opacity-90"
                         >
-                          <span>Guess Distribution</span>
+                          <span>View Guess Distribution</span>
                         </button>
                       </div>
                     </div>

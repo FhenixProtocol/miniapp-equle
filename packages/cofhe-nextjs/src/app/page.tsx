@@ -124,31 +124,6 @@ export default function Home() {
               </div>
             )}
 
-            {/* ETH Balance Warning */}
-            {isConnected && isOutOfETH && (
-              <div className="text-center mb-4 px-4">
-                <div
-                  className="inline-block px-6 py-3 rounded-lg"
-                  style={{
-                    backgroundColor: "rgba(220, 53, 69, 0.1)",
-                    border: "2px solid #DC3545",
-                  }}
-                >
-                  <p className="text-red-400 text-sm font-visitor1 uppercase tracking-wide">
-                    ⚠️ It seems like you&apos;re out of ETH to play the game
-                  </p>
-                  <Link
-                    href="https://portal.cdp.coinbase.com/products/faucet"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    className="text-white text-xs underline hover:opacity-80 transition-opacity duration-200 mt-2 inline-block"
-                  >
-                    Get some testnet ETH here →
-                  </Link>
-                </div>
-              </div>
-            )}
-
             <div className="mt-8">
               {!isConnected ||
               !isCofheInitialized ||

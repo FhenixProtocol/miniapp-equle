@@ -21,14 +21,14 @@ import { FHEModal } from "./components/FHEModal";
 import { useEffect, useState } from "react";
 import { usePermit } from "./hooks/usePermit";
 import Link from "next/link";
-import { baseSepolia } from "viem/chains";
+import { arbitrumSepolia } from "viem/chains";
 
 export default function Home() {
   const { setFrameReady, isFrameReady } = useMiniKit();
   const { address, isConnected } = useAccount();
   const { data: balance } = useBalance({
     address: address,
-    chainId: baseSepolia.id,
+    chainId: arbitrumSepolia.id,
   });
   const { isInitialized: isCofheInitialized } = useCofheStore();
   const { gameId: currentGameId } = useCurrentGameId();

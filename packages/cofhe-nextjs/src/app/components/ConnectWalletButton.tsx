@@ -1,7 +1,7 @@
 "use client";
 
 import { useConnect } from "wagmi";
-import { baseSepolia } from "wagmi/chains";
+import { arbitrumSepolia } from "wagmi/chains";
 import { useIsInMiniApp } from "@coinbase/onchainkit/minikit";
 
 export function ConnectWalletButton({
@@ -17,7 +17,7 @@ export function ConnectWalletButton({
     <button
       onClick={() =>
         connect({
-          chainId: baseSepolia.id,
+          chainId: arbitrumSepolia.id,
           connector: isInMiniApp ? connectors[0] : connectors[1],
         })
       }

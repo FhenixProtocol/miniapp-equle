@@ -156,7 +156,7 @@ export default function StatsPage() {
                           onClick={() => setIsGuessModalOpen(true)}
                           className="mx-auto block w-full max-w-xs px-5 py-2 bg-white text-black uppercase tracking-widest text-xs sm:text-sm font-bold hover:opacity-90"
                         >
-                          <span>View Guess Distribution</span>
+                          <span>Guess Distribution</span>
                         </button>
                       </div>
                     </div>

@@ -19,7 +19,10 @@
       "heroImageUrl": "https://equle.fhenix.io/og.png",
       "splashImageUrl": "https://equle.fhenix.io/icon.png",
       "primaryCategory": "games",
-      "splashBackgroundColor": "#001623"
+      "splashBackgroundColor": "#001623",
+      "screenshotUrls": [
+      "https://equle.fhenix.io/screenshot.png"
+    ]
     },
     "accountAssociation": {
       "header": "eyJmaWQiOjI1MTQzMywidHlwZSI6ImF1dGgiLCJrZXkiOiIweDJFMTMwMDI4OWU1MzI3OTc0MGExNGI2MjNFQWU0YzBhYUNDRTFiRjcifQ",

@@ -199,10 +199,11 @@ export function NumberleGame({
     const gameId = gameState?.gameId || propGameId || 0;
     const shareText = `I just won Equle Game ${gameId} by @fhenix ! Can you beat my score?`;
 
-    composeCast({
-      text: shareText,
-      embeds: ["https://equle.vercel.app/"],
-    });
+    const twitterUrl = `https://twitter.com/intent/tweet?text=${encodeURIComponent(
+      shareText
+    )}&url=${encodeURIComponent("https://equle.arb.fhenix.io/")}`;
+
+    window.open(twitterUrl, "_blank");
   };
 
   const handleKeyPress = (key: string) => {

@@ -197,7 +197,7 @@ export function NumberleGame({
 
   const handleShareResult = () => {
     const gameId = gameState?.gameId || propGameId || 0;
-    const shareText = `I just won Equle Game ${gameId}! Can you beat my score?`;
+    const shareText = `I just won Equle Game ${gameId} by @fhenix ! Can you beat my score?`;
 
     composeCast({
       text: shareText,
@@ -585,20 +585,16 @@ export function NumberleGame({
 
             {/* Share Button - shown when victory has been claimed */}
             {shouldShowShareButton && (
-                <div className="mb-4 text-center">
-                  <button
-                    onClick={handleShareResult}
-                    className="px-4 py-2 bg-transparent text-white uppercase tracking-widest flex items-center justify-center gap-2 font-bold mx-auto border-2 border-dotted border-cyan-400 hover:opacity-80 transition-opacity duration-200"
-                  >
-                    <span>Share Victory</span>
-                    <img
-                      src="/button_icon.svg"
-                      alt="icon"
-                      className="w-3 h-3"
-                    />
-                  </button>
-                </div>
-              )}
+              <div className="mb-4 text-center">
+                <button
+                  onClick={handleShareResult}
+                  className="px-4 py-2 bg-transparent text-white uppercase tracking-widest flex items-center justify-center gap-2 font-bold mx-auto border-2 border-dotted border-cyan-400 hover:opacity-80 transition-opacity duration-200"
+                >
+                  <span>Share Victory</span>
+                  <img src="/button_icon.svg" alt="icon" className="w-3 h-3" />
+                </button>
+              </div>
+            )}
 
             {/* Finalize Message */}
             {finalizeMessage && !shouldShowFinalizeButton && (
@@ -737,54 +733,54 @@ export function NumberleGame({
         </div>
 
         {/* Loss Message - shown only when max attempts reached without winning */}
-        {gameState?.isGameComplete && 
-         !gameState?.hasWon && 
-         gameState?.currentAttempt >= (gameState?.maxAttempts || 6) && 
-         !shouldShowFinalizeButton && 
-         !shouldShowClaimButton && (
-          <div className="mt-6 text-center relative z-10">
-            <div className="mb-4">
-              <div
-                className="inline-block px-4 py-3 text-center"
-                style={{
-                  color: "#000000",
-                  backgroundColor: "transparent",
-                  borderTop: "2px dotted #0AD9DC",
-                  borderBottom: "2px dotted #0AD9DC",
-                }}
-              >
-                <span className="block sm:inline font-mono uppercase tracking-widest">
-                  Game Over
-                </span>
+        {gameState?.isGameComplete &&
+          !gameState?.hasWon &&
+          gameState?.currentAttempt >= (gameState?.maxAttempts || 6) &&
+          !shouldShowFinalizeButton &&
+          !shouldShowClaimButton && (
+            <div className="mt-6 text-center relative z-10">
+              <div className="mb-4">
+                <div
+                  className="inline-block px-4 py-3 text-center"
+                  style={{
+                    color: "#000000",
+                    backgroundColor: "transparent",
+                    borderTop: "2px dotted #0AD9DC",
+                    borderBottom: "2px dotted #0AD9DC",
+                  }}
+                >
+                  <span className="block sm:inline font-mono uppercase tracking-widest">
+                    Game Over
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Win Message - shown only when victory is fully claimed */}
-        {gameState?.hasWon && 
-         gameState?.isGameComplete && 
-         !shouldShowFinalizeButton && 
-         !shouldShowClaimButton && 
-         !shouldShowShareButton && (
-          <div className="mt-6 text-center relative z-10">
-            <div className="mb-4">
-              <div
-                className="inline-block px-4 py-3 text-center"
-                style={{
-                  color: "#000000",
-                  backgroundColor: "transparent",
-                  borderTop: "2px dotted #0AD9DC",
-                  borderBottom: "2px dotted #0AD9DC",
-                }}
-              >
-                <span className="block sm:inline font-mono uppercase tracking-widest text-center">
-                  Congratulations!
-                </span>
+        {gameState?.hasWon &&
+          gameState?.isGameComplete &&
+          !shouldShowFinalizeButton &&
+          !shouldShowClaimButton &&
+          !shouldShowShareButton && (
+            <div className="mt-6 text-center relative z-10">
+              <div className="mb-4">
+                <div
+                  className="inline-block px-4 py-3 text-center"
+                  style={{
+                    color: "#000000",
+                    backgroundColor: "transparent",
+                    borderTop: "2px dotted #0AD9DC",
+                    borderBottom: "2px dotted #0AD9DC",
+                  }}
+                >
+                  <span className="block sm:inline font-mono uppercase tracking-widest text-center">
+                    Congratulations!
+                  </span>
+                </div>
               </div>
             </div>
-          </div>
-        )}
+          )}
 
         {/* Rules Modal */}
         <RulesModal isOpen={showRules} onClose={() => setShowRules(false)} />

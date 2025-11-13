@@ -16,40 +16,47 @@ import {
   WalletDropdown,
   WalletDropdownDisconnect,
 } from "@coinbase/onchainkit/wallet";
-export function Navbar() {
+
+export function Navbar({ currentGameId }: { currentGameId?: number | null }) {
   const { isConnected } = useAccount();
 
   if (!isConnected) return null;
   return (
-    <nav className="w-full px-4 py-3 rounded-xl shadow-lg mb-4 overflow-visible relative z-40">
+    <nav className="w-full px-4 py-3 rounded-xl mb-4 overflow-visible relative z-40">
       <div className="mx-auto w-full max-w-screen-lg">
-        <div className="flex items-center justify-between gap-4">
+        <div className="flex items-center gap-4">
           {/* Left: Brand */}
-          <Link href="/" className="block">
-            <div
-              className="text-center cursor-pointer"
-              style={{
-                backgroundColor: "transparent",
-                paddingLeft: "20px",
-                paddingRight: "20px",
-              }}
-            >
-              <div className="text-white font-visitor1 uppercase text-3xl sm:text-4xl md:text-5xl lg:text-6xl leading-none">
-                Equle
+          <div className="flex-1 flex items-center justify-start">
+            <Link href="/" className="block">
+              <div
+                className="text-center cursor-pointer"
+                style={{
+                  backgroundColor: "transparent",
+                  paddingLeft: "20px",
+                  paddingRight: "20px",
+                }}
+              >
+                <div className="text-gray-300 font-visitor1 uppercase text-xs sm:text-base leading-none mt-1 flex flex-col items-center justify-center gap-1">
+                  <span>Powered by</span>
+                  <img
+                    src="/fhenix_logo_dark.svg"
+                    alt="fhenix"
+                    className="h-4 sm:h-6 md:h-7 w-auto"
+                  />
+                </div>
               </div>
-              <div className="text-gray-300 font-visitor1 uppercase text-xs sm:text-base leading-none mt-1 flex flex-col items-center justify-center gap-1">
-                <span>Powered by</span>
-                <img
-                  src="/fhenix_logo_dark.svg"
-                  alt="fhenix"
-                  className="h-4 sm:h-6 md:h-7 w-auto"
-                />
-              </div>
-            </div>
-          </Link>
+            </Link>
+          </div>
 
-          {/* Center: Stats Button */}
-          <div className="flex items-center justify-center">
+          {/* Center: Game ID */}
+          <div className="flex-1 flex items-center justify-center">
+            <p className="text-white text-xl font-visitor1 uppercase tracking-widest whitespace-nowrap">
+              Game <span style={{ color: "#0AD9DC" }}>{currentGameId}</span>
+            </p>
+          </div>
+
+          {/* Right: Stats Button */}
+          <div className="flex-1 flex items-center justify-end">
             <Link href="/stats">
               <button className="px-4 py-3 bg-[#2c3540] hover:bg-[#3a4450] rounded-xl flex items-center justify-center transition-colors duration-200">
                 <svg
@@ -71,7 +78,7 @@ export function Navbar() {
           </div>
 
           {/* Right: Wallet */}
-          <div className="flex items-center justify-end overflow-visible">
+          {/* <div className="flex items-center justify-end overflow-visible">
             <div className="relative z-50">
               <Wallet>
                 <ConnectWallet>
@@ -89,7 +96,7 @@ export function Navbar() {
                 </WalletDropdown>
               </Wallet>
             </div>
-          </div>
+          </div> */}
         </div>
         {/* Hidden CofheStatus to keep it mounted */}
         <div className="hidden">

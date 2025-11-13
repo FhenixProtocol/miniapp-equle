@@ -111,45 +111,38 @@ export default function Home() {
       }}
     >
       <div className="flex-1">
-        <div className="container mx-auto px-4 py-8">
-          <div className="max-w-2xl mx-auto space-y-6">
-            {isConnected ? <Navbar /> : null}
-
-            {/* Game Day Display */}
+        <div className="container mx-auto px-4 pt-4 pb-8">
+          <div className="max-w-2xl mx-auto space-y-3">
+            {isConnected ? <Navbar currentGameId={currentGameId} /> : null}
+            {/* Game Day Display
             {isConnected && currentGameId !== null && (
               <div className="text-center mb-4">
                 <p className="text-white text-xl font-visitor1 uppercase tracking-widest">
                   Game <span style={{ color: "#0AD9DC" }}>{currentGameId}</span>
                 </p>
               </div>
-            )}
-
+            )} */}
             {/* ETH Balance Warning */}
             {isConnected && isOutOfETH && (
-              <div className="text-center mb-4 px-4">
+              <div className="text-center ">
                 <div
-                  className="inline-block px-6 py-3 rounded-lg"
+                  className="inline-block px-3 py-1 rounded-lg"
                   style={{
                     backgroundColor: "rgba(220, 53, 69, 0.1)",
-                    border: "2px solid #DC3545",
                   }}
                 >
-                  <p className="text-red-400 text-sm font-visitor1 uppercase tracking-wide">
-                    ⚠️ It seems like you&apos;re out of ETH to play the game
-                  </p>
                   <Link
                     href="https://portal.cdp.coinbase.com/products/faucet"
                     target="_blank"
                     rel="noopener noreferrer"
-                    className="text-white text-xs underline hover:opacity-80 transition-opacity duration-200 mt-2 inline-block"
+                    className="text-white text-s underline hover:opacity-80 transition-opacity duration-200  inline-block"
                   >
                     Get some testnet ETH here →
                   </Link>
                 </div>
               </div>
             )}
-
-            <div className="mt-8">
+            <div>
               {!isConnected ||
               !isCofheInitialized ||
               !hasValidPermit ||
@@ -184,7 +177,7 @@ export default function Home() {
                           <button
                             onClick={handleGeneratePermit}
                             disabled={hasValidPermit || isGeneratingPermit}
-                            className="mt-4 mb-2 inline-flex items-center gap-2 px-6 py-2 text-white uppercase tracking-widest transition-opacity duration-200 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
+                            className="mt-2 mb-2 inline-flex items-center gap-2 px-6 py-2 text-white uppercase tracking-widest transition-opacity duration-200 hover:opacity-90 disabled:opacity-50 disabled:cursor-not-allowed"
                             style={{
                               backgroundColor: "transparent",
                               borderTop: "2px dotted #0AD9DC",
@@ -240,10 +233,9 @@ export default function Home() {
                 <NumberleGame gameId={currentGameId} />
               )}
             </div>
-
             {/* FHE Information Button */}
             {isConnected && isCofheInitialized && (
-              <div className="text-center mt-6">
+              <div className="text-center mt-2">
                 <button
                   onClick={() => setShowFHE(true)}
                   className="text-sm underline hover:opacity-80 transition-opacity duration-200"
@@ -253,10 +245,9 @@ export default function Home() {
                 </button>
               </div>
             )}
-
             {/* Remove Permit Button */}
             {isConnected && isCofheInitialized && hasValidPermit && (
-              <div className="text-center mt-4">
+              <div className="text-center mt-1">
                 <button
                   onClick={handleRemovePermit}
                   className="text-xs underline hover:opacity-80 transition-opacity duration-200"
@@ -269,7 +260,7 @@ export default function Home() {
           </div>
         </div>
       </div>
-      <Footer />
+      {/* <Footer /> */}
 
       {/* FHE Modal */}
       <FHEModal isOpen={showFHE} onClose={() => setShowFHE(false)} />

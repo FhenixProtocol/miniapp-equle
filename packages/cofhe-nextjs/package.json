@@ -18,9 +18,9 @@
     "@tanstack/react-query": "^5.77.2",
     "cofhejs": "^0.3.1",
     "ethers": "^6.15.0",
-    "next": "15.3.2",
-    "react": "^19.0.0",
-    "react-dom": "^19.0.0",
+    "next": "15.3.6",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
     "viem": "^2.30.1",
     "wagmi": "^2.16.9",
     "zustand": "^5.0.5"

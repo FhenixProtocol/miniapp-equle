@@ -4,6 +4,7 @@ import localFont from "next/font/local";
 import "./globals.css";
 import "@coinbase/onchainkit/styles.css";
 import { Providers } from "./providers";
+import { Analytics } from "@vercel/analytics/next";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -94,6 +95,7 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} ${clashDisplay.variable} ${visitor1.variable} antialiased`}
       >
         <Providers>{children}</Providers>
+        <Analytics />
       </body>
     </html>
   );

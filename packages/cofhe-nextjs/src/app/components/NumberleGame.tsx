@@ -71,7 +71,6 @@ export function NumberleGame({
     finalizeMessage,
     finalizeGame,
     decryptFinalizedEquation,
-    hasDecryptedEquation,
     shouldShowFinalizeButton,
     shouldShowClaimButton,
     shouldShowShareButton,
@@ -545,9 +544,6 @@ export function NumberleGame({
                     <span className="block sm:inline font-visitor1 uppercase tracking-widest">
                       You solved it!
                     </span>
-                  </div>
-                  <div className="mt-2 text-xs sm:text-sm text-gray-300 font-mono uppercase tracking-widest">
-                    {hasDecryptedEquation()}
                   </div>
                 </div>
 

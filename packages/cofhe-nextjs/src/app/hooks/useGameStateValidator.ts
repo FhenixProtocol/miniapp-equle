@@ -4,7 +4,7 @@ import { CONTRACT_ADDRESS, CONTRACT_ABI } from "../../../contract/contract";
 import { useGameStore } from "../store/gameStore";
 import { useGameSync } from "./useGameSync";
 import { useCofheStore } from "../store/cofheStore";
-import { cofhejs } from "cofhejs/web";
+import { cofheClient } from "../services/cofhe-client";
 
 type SyncStatus = "loading" | "synced" | "needs-sync" | "error";
 
@@ -32,7 +32,9 @@ export function useGameStateValidator(
     abi: CONTRACT_ABI,
     functionName: "getPlayerGameState",
     args:
-      currentGameId !== null && address ? [currentGameId, address] : undefined,
+      currentGameId !== null && currentGameId !== undefined && address
+        ? [BigInt(currentGameId), address]
+        : undefined,
     query: { enabled: false }, // Manual fetching only
   });
 
@@ -64,7 +66,7 @@ export function useGameStateValidator(
   }, [currentGameId, gameState, clearGameState]);
 
   const validateAndSync = useCallback(async () => {
-    if (!address || currentGameId === null) {
+    if (!address || currentGameId === null || currentGameId === undefined) {
       setSyncStatus("loading");
       return;
     }
@@ -75,9 +77,14 @@ export function useGameStateValidator(
       return;
     }
 
-    // Check if CoFHE permit is available - use getPermit() to get active permit
-    const permitResult = cofhejs?.getPermit();
-    if (!permitResult?.success || !permitResult?.data) {
+    // Check if CoFHE permit is available
+    try {
+      const active = cofheClient.permits.getActivePermit();
+      if (!active) {
+        setSyncStatus("loading");
+        return;
+      }
+    } catch {
       setSyncStatus("loading");
       return;
     }
@@ -89,8 +96,8 @@ export function useGameStateValidator(
     try {
       // Fetch current on-chain state
       const { data: result } = (await refetchPlayerGameState({
-        args: [currentGameId, address],
-      } as any)) as { data: [bigint, boolean] };
+        args: [BigInt(currentGameId), address],
+      } as any)) as unknown as { data: readonly [number, boolean] };
 
       if (!result) {
         throw new Error("Failed to fetch on-chain game state");

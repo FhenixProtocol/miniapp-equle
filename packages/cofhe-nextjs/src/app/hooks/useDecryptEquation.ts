@@ -1,71 +1,57 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import {
   useReadContract,
   useWriteContract,
   useWaitForTransactionReceipt,
+  usePublicClient,
 } from "wagmi";
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from "../../../contract/contract";
 import { useGameStore } from "../store/gameStore";
+import { cofheClient } from "../services/cofhe-client";
 
 type EndGameState =
   | "idle" // No endgame action needed
-  | "can-finalize" // Player won, can finalize game
+  | "can-finalize" // Player won locally, can finalize game on-chain
   | "finalizing" // Executing finalize transaction
-  | "decrypting" // Waiting for equation decryption
-  | "can-claim" // Equation ready, can claim victory
-  | "claiming" // Executing claim victory transaction
+  | "decrypting" // Calling decryptForTx off-chain via Threshold Network
+  | "can-claim" // Decryption succeeded, ready to submit ClaimVictory tx
+  | "claiming" // Executing ClaimVictory transaction
   | "claimed"; // Victory claimed, can share
 
 export function useDecryptEquation(address?: `0x${string}`) {
   const [endGameState, setEndGameState] = useState<EndGameState>("idle");
   const [finalizeMessage, setFinalizeMessage] = useState<string>("");
+  const pendingDecryptRef = useRef<{
+    ctHash: `0x${string}`;
+    decryptedValue: bigint;
+    signature: `0x${string}`;
+  } | null>(null);
 
+  const publicClient = usePublicClient();
   const { writeContract, data: hash } = useWriteContract();
-  const { isSuccess: isConfirmed } = useWaitForTransactionReceipt({
-    hash,
-  });
+  const { isSuccess: isConfirmed } = useWaitForTransactionReceipt({ hash });
 
   const { gameState, setGameState, setGameStateSynced } = useGameStore();
 
-  // Read contract for polling decrypted finalized equation
-  const { data: decryptedEquation, refetch: refetchDecryptedEquation } =
-    useReadContract({
-      address: CONTRACT_ADDRESS as `0x${string}`,
-      abi: CONTRACT_ABI,
-      functionName: "getDecryptedfinalizedEquation",
-      args: [],
-      account: address,
-    });
-
-  // Read player game state
   const { refetch: refetchPlayerGameState } = useReadContract({
     address: CONTRACT_ADDRESS as `0x${string}`,
     abi: CONTRACT_ABI,
     functionName: "getPlayerGameState",
-    args: gameState ? [gameState.gameId, address] : undefined,
-    query: {
-      enabled: !!(gameState && address),
-    },
+    args: gameState && address ? [BigInt(gameState.gameId), address] : undefined,
+    query: { enabled: !!(gameState && address) },
   });
 
-  // Check if decrypted equation is available
-  const hasDecryptedEquation = (): boolean => {
-    return decryptedEquation !== undefined && decryptedEquation !== null;
-  };
-
-  // Check if the last guess is all correct (all green) - DON'T CHANGE THIS
   const isLastGuessAllCorrect = (): boolean => {
     if (!gameState?.guesses || gameState.guesses.length === 0) return false;
     const lastGuess = gameState.guesses[gameState.guesses.length - 1];
-    return lastGuess.feedback.every((feedback) => feedback === "correct");
+    return lastGuess.feedback.every((f) => f === "correct");
   };
 
-  // Check if game is won but not finalized yet - DON'T CHANGE THIS
   const isWonButNotFinalized = (): boolean => {
     return isLastGuessAllCorrect() && !gameState?.hasWon;
   };
 
-  // STEP 1: Finalize game (already working, don't change)
+  // Step 1: finalize tx → on-chain FHE.allowPublic
   const finalizeGame = async () => {
     if (!address) {
       setFinalizeMessage("Wallet not connected");
@@ -89,8 +75,59 @@ export function useDecryptEquation(address?: `0x${string}`) {
     }
   };
 
-  // STEP 3: Claim victory
+  // Step 2 (off-chain): after finalize confirms, read the ctHash then decryptForTx
+  const runDecryptForTx = async () => {
+    if (!address || !gameState || !publicClient) return;
+
+    setEndGameState("decrypting");
+    setFinalizeMessage("Decrypting equation...");
+
+    try {
+      const ctHash = (await publicClient.readContract({
+        address: CONTRACT_ADDRESS as `0x${string}`,
+        abi: CONTRACT_ABI,
+        functionName: "getPlayerEquationXor",
+        args: [BigInt(gameState.gameId), address],
+      })) as `0x${string}`;
+
+      if (!ctHash || /^0x0+$/.test(ctHash)) {
+        throw new Error("No equation ctHash available from contract");
+      }
+
+      const { decryptedValue, signature } = await cofheClient
+        .decryptForTx(ctHash)
+        .withoutPermit()
+        .execute();
+
+      pendingDecryptRef.current = {
+        ctHash,
+        decryptedValue: BigInt(decryptedValue),
+        signature: signature as `0x${string}`,
+      };
+
+      setEndGameState("can-claim");
+      setFinalizeMessage("Equation ready! Claim your victory.");
+    } catch (err) {
+      console.error("Off-chain decrypt failed:", err);
+      setFinalizeMessage(
+        err instanceof Error
+          ? `Decrypt failed: ${err.message}`
+          : "Decrypt failed."
+      );
+      setEndGameState("can-finalize");
+      setTimeout(() => setFinalizeMessage(""), 5000);
+    }
+  };
+
+  // Step 3: submit ClaimVictory with (decryptedValue, signature)
   const decryptFinalizedEquation = async () => {
+    const pending = pendingDecryptRef.current;
+    if (!pending) {
+      setFinalizeMessage("No decryption result available. Finalize first.");
+      setTimeout(() => setFinalizeMessage(""), 5000);
+      return;
+    }
+
     setEndGameState("claiming");
     setFinalizeMessage("Claiming victory...");
 
@@ -99,7 +136,7 @@ export function useDecryptEquation(address?: `0x${string}`) {
         address: CONTRACT_ADDRESS as `0x${string}`,
         abi: CONTRACT_ABI,
         functionName: "ClaimVictory",
-        args: [],
+        args: [pending.decryptedValue, pending.signature],
       });
     } catch (error) {
       setFinalizeMessage("Error claiming victory NFT. Please try again.");
@@ -108,17 +145,14 @@ export function useDecryptEquation(address?: `0x${string}`) {
     }
   };
 
-  // Handle transaction confirmations
+  // Watch tx confirmations → drive state machine
   useEffect(() => {
     if (!isConfirmed) return;
 
     if (endGameState === "finalizing") {
-      // Step 1 complete → Step 2: Wait for decryption
-      setEndGameState("decrypting");
-      setFinalizeMessage("Decrypting equation...");
-      refetchDecryptedEquation();
+      // finalize tx confirmed → run off-chain decrypt, then transition to can-claim
+      runDecryptForTx();
     } else if (endGameState === "claiming") {
-      // Step 3 complete → Step 4: Update win status
       setFinalizeMessage("Updating win status...");
       setTimeout(() => {
         checkPlayerWinStatus();
@@ -126,88 +160,36 @@ export function useDecryptEquation(address?: `0x${string}`) {
     }
   }, [isConfirmed, endGameState]);
 
-  // Check if equation is decrypted → transition to claim state
-  useEffect(() => {
-    console.log("Checking decrypted equation:", {
-      endGameState,
-      hasDecryptedEquation: hasDecryptedEquation(),
-      decryptedEquation,
-      isValid:
-        decryptedEquation !== "0x" &&
-        decryptedEquation !== "0x0000000000000000000000000000000000000000",
-    });
-
-    if (
-      endGameState === "decrypting" &&
-      hasDecryptedEquation() &&
-      decryptedEquation !== "0x" &&
-      decryptedEquation !== "0x0000000000000000000000000000000000000000"
-    ) {
-      // Step 2 complete → Step 3: Ready to claim
-      console.log(
-        "✅ Decrypted equation found! Transitioning to can-claim state"
-      );
-      setEndGameState("can-claim");
-      setFinalizeMessage("Equation ready! Claim your victory.");
-    }
-  }, [endGameState, decryptedEquation]);
-
-  // Polling logic for decrypted equation when in decrypting state
-  useEffect(() => {
-    if (endGameState !== "decrypting") return;
-
-    console.log("🔄 Starting polling for decrypted equation...");
-
-    const pollInterval = setInterval(async () => {
-      console.log("📡 Polling attempt for decrypted equation...");
-      try {
-        const result = await refetchDecryptedEquation();
-        console.log("📡 Poll result:", {
-          data: result.data,
-          hasData: !!result.data,
-          isValid:
-            result.data !== "0x" &&
-            result.data !== "0x0000000000000000000000000000000000000000",
-        });
-      } catch (error) {
-        console.error("❌ Error polling for decrypted equation:", error);
-      }
-    }, 3000); // Poll every 3 seconds
-
-    // Cleanup interval when component unmounts or state changes
-    return () => {
-      console.log("🛑 Stopping decrypted equation polling");
-      clearInterval(pollInterval);
-    };
-  }, [endGameState, refetchDecryptedEquation]);
-
-  // Check player win status after claim
   const checkPlayerWinStatus = async (): Promise<void> => {
     if (!address || !gameState) return;
 
     try {
       const result = await refetchPlayerGameState();
       if (result.data) {
-        const [, hasWon] = result.data as [bigint, boolean];
+        const [, hasWon] = result.data as unknown as [number, boolean];
 
         if (hasWon) {
-          // Update game state if needed
           if (!gameState.hasWon) {
-            const updatedGameState = {
+            setGameState({
               ...gameState,
               hasWon: true,
               isGameComplete: true,
-            };
-            setGameState(updatedGameState);
+            });
             setGameStateSynced(true);
           }
-
-          // Step 4 complete → Ready to share
-          setFinalizeMessage(" Victory claimed successfully! ");
+          setFinalizeMessage("Victory claimed successfully!");
           setTimeout(() => {
             setFinalizeMessage("");
             setEndGameState("claimed");
           }, 3000);
+        } else {
+          setFinalizeMessage(
+            "Claim did not confirm victory. Try again or play another round."
+          );
+          setTimeout(() => {
+            setFinalizeMessage("");
+            setEndGameState("idle");
+          }, 5000);
         }
       }
     } catch (error) {
@@ -219,46 +201,31 @@ export function useDecryptEquation(address?: `0x${string}`) {
     }
   };
 
-  // Set initial state based on game state - but don't override active endgame flow
+  // Initial state from game state
   useEffect(() => {
-    // Don't override if we're already in an active endgame flow
-    if (endGameState !== "idle") {
-      console.log(
-        "🚫 Skipping initial state check - endgame flow already active:",
-        endGameState
-      );
-      return;
-    }
+    if (endGameState !== "idle") return;
 
     if (isWonButNotFinalized()) {
-      console.log("🎯 Setting initial state to can-finalize");
       setEndGameState("can-finalize");
-    } else if (
-      gameState?.hasWon &&
-      gameState?.isGameComplete &&
-      hasDecryptedEquation() &&
-      decryptedEquation !== "0x" &&
-      decryptedEquation !== "0x0000000000000000000000000000000000000000"
-    ) {
-      // Only set to claimed if ALL victory steps have been completed
-      console.log("🏆 Setting initial state to claimed");
+    } else if (gameState?.hasWon && gameState?.isGameComplete) {
       setEndGameState("claimed");
     }
-  }, [gameState, decryptedEquation, endGameState]);
+  }, [gameState, endGameState]);
 
   return {
-    // Functions
+    // Actions
     finalizeGame,
     decryptFinalizedEquation,
-    hasDecryptedEquation,
     isWonButNotFinalized,
 
     // State
     finalizeMessage,
     isFinalizingGame:
-      endGameState === "finalizing" || endGameState === "claiming",
+      endGameState === "finalizing" ||
+      endGameState === "decrypting" ||
+      endGameState === "claiming",
 
-    // Computed values
+    // UI gating
     shouldShowFinalizeButton: endGameState === "can-finalize",
     shouldShowClaimButton: endGameState === "can-claim",
     shouldShowShareButton: endGameState === "claimed",

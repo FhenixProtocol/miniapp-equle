@@ -1,27 +1,11 @@
-export const CONTRACT_ADDRESS = "0xcDEa01Cc048C376cf164A764100776f88DcF345f";
-export const NFT_ADDRESS = "0x8c12c1c87719b0ceb7977fba49412ff19d6dfa7f";
+export const CONTRACT_ADDRESS = "0x1c62A97ABBF56c369e996582F6a30B4315b4Fbb9";
+export const NFT_ADDRESS = "0xD67508313BbD1A98a5F9d731644408dbaaB4eE38";
 
 export const CONTRACT_ABI = [
   {
     inputs: [],
     stateMutability: "nonpayable",
     type: "constructor",
-  },
-  {
-    inputs: [
-      {
-        internalType: "address",
-        name: "player",
-        type: "address",
-      },
-      {
-        internalType: "uint256",
-        name: "gameId",
-        type: "uint256",
-      },
-    ],
-    name: "DecryptionNotReady",
-    type: "error",
   },
   {
     inputs: [
@@ -196,13 +180,13 @@ export const CONTRACT_ABI = [
         indexed: false,
         internalType: "euint128",
         name: "lastEquationXor",
-        type: "uint256",
+        type: "bytes32",
       },
       {
         indexed: false,
         internalType: "euint16",
         name: "resultFeedback",
-        type: "uint256",
+        type: "bytes32",
       },
     ],
     name: "GuessSubmitted",
@@ -253,7 +237,18 @@ export const CONTRACT_ABI = [
     type: "event",
   },
   {
-    inputs: [],
+    inputs: [
+      {
+        internalType: "uint128",
+        name: "decryptedValue",
+        type: "uint128",
+      },
+      {
+        internalType: "bytes",
+        name: "decryptionProof",
+        type: "bytes",
+      },
+    ],
     name: "ClaimVictory",
     outputs: [],
     stateMutability: "nonpayable",
@@ -292,7 +287,7 @@ export const CONTRACT_ABI = [
       {
         internalType: "euint16",
         name: "",
-        type: "uint256",
+        type: "bytes32",
       },
     ],
     stateMutability: "view",
@@ -305,7 +300,7 @@ export const CONTRACT_ABI = [
       {
         internalType: "euint16",
         name: "",
-        type: "uint256",
+        type: "bytes32",
       },
     ],
     stateMutability: "view",
@@ -318,7 +313,7 @@ export const CONTRACT_ABI = [
       {
         internalType: "euint16",
         name: "",
-        type: "uint256",
+        type: "bytes32",
       },
     ],
     stateMutability: "view",
@@ -340,7 +335,13 @@ export const CONTRACT_ABI = [
   {
     inputs: [],
     name: "finalizeGame",
-    outputs: [],
+    outputs: [
+      {
+        internalType: "bytes32",
+        name: "ctHash",
+        type: "bytes32",
+      },
+    ],
     stateMutability: "nonpayable",
     type: "function",
   },
@@ -357,7 +358,7 @@ export const CONTRACT_ABI = [
       {
         internalType: "euint128",
         name: "",
-        type: "uint256",
+        type: "bytes32",
       },
     ],
     stateMutability: "view",
@@ -376,7 +377,7 @@ export const CONTRACT_ABI = [
       {
         internalType: "euint16",
         name: "",
-        type: "uint256",
+        type: "bytes32",
       },
     ],
     stateMutability: "view",
@@ -390,19 +391,6 @@ export const CONTRACT_ABI = [
         internalType: "uint256",
         name: "",
         type: "uint256",
-      },
-    ],
-    stateMutability: "view",
-    type: "function",
-  },
-  {
-    inputs: [],
-    name: "getDecryptedfinalizedEquation",
-    outputs: [
-      {
-        internalType: "uint128",
-        name: "",
-        type: "uint128",
       },
     ],
     stateMutability: "view",
@@ -431,22 +419,22 @@ export const CONTRACT_ABI = [
       {
         internalType: "euint128",
         name: "equationGuess",
-        type: "uint256",
+        type: "bytes32",
       },
       {
         internalType: "euint16",
         name: "resultGuess",
-        type: "uint256",
+        type: "bytes32",
       },
       {
         internalType: "euint128",
         name: "equationXor",
-        type: "uint256",
+        type: "bytes32",
       },
       {
         internalType: "euint16",
         name: "resultFeedback",
-        type: "uint256",
+        type: "bytes32",
       },
     ],
     stateMutability: "view",
@@ -494,7 +482,7 @@ export const CONTRACT_ABI = [
       {
         internalType: "euint128",
         name: "",
-        type: "uint256",
+        type: "bytes32",
       },
     ],
     stateMutability: "view",
@@ -547,7 +535,7 @@ export const CONTRACT_ABI = [
       {
         internalType: "euint128",
         name: "",
-        type: "uint256",
+        type: "bytes32",
       },
     ],
     stateMutability: "view",
@@ -571,7 +559,7 @@ export const CONTRACT_ABI = [
       {
         internalType: "euint16",
         name: "",
-        type: "uint256",
+        type: "bytes32",
       },
     ],
     stateMutability: "view",
@@ -776,7 +764,7 @@ export const CONTRACT_ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
-];
+] as const;
 
 export const NFT_CONTRACT_ABI = [
   {
@@ -1298,6 +1286,19 @@ export const NFT_CONTRACT_ABI = [
     type: "function",
   },
   {
+    inputs: [],
+    name: "img",
+    outputs: [
+      {
+        internalType: "string",
+        name: "",
+        type: "string",
+      },
+    ],
+    stateMutability: "view",
+    type: "function",
+  },
+  {
     inputs: [
       {
         internalType: "address",
@@ -1603,4 +1604,4 @@ export const NFT_CONTRACT_ABI = [
     stateMutability: "nonpayable",
     type: "function",
   },
-];
+] as const;

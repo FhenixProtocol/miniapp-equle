@@ -29,7 +29,6 @@ contract Equle is Ownable {
     error MaxAttemptsReached(uint8 currentAttempts);
     error GameAlreadyWon(address player, uint256 gameId);
     error NoAttemptsYet(address player, uint256 gameId);
-    error DecryptionNotReady(address player, uint256 gameId);
 
     //STATE VARIABLES
 
@@ -188,10 +187,13 @@ contract Equle is Ownable {
     }
 
     /**
-     * @notice Initiates decryption of the player's last equation XOR result
-     * @dev Must be called after the player believes they have the correct answer
+     * @notice Marks the player's last equation XOR as publicly decryptable
+     * @dev Client calls decryptForTx(ctHash).withoutPermit() off-chain to obtain
+     *      the decrypted value + Threshold Network signature, then submits both
+     *      to ClaimVictory for verification.
+     * @return ctHash The bytes32 handle of the ciphertext the client must decrypt
      */
-    function finalizeGame() public {
+    function finalizeGame() public returns (bytes32 ctHash) {
         uint256 gameId = getCurrentGameId();
 
         if (playerStates[gameId][msg.sender].currentAttempt == 0) {
@@ -204,42 +206,25 @@ contract Equle is Ownable {
 
         uint8 lastAttempt = playerStates[gameId][msg.sender].currentAttempt - 1;
 
-        // Get the last attempt's XOR result
         euint128 lastEquationXor = attemptData[gameId][msg.sender][lastAttempt]
             .equationXor;
-        FHE.decrypt(lastEquationXor);
+        FHE.allowPublic(lastEquationXor);
 
         emit GameFinalized(msg.sender, gameId, lastAttempt);
-    }
-
-    function getDecryptedfinalizedEquation() public view returns (uint128) {
-        uint256 gameId = getCurrentGameId();
-
-        if (playerStates[gameId][msg.sender].currentAttempt == 0) {
-            revert NoAttemptsYet(msg.sender, gameId);
-        }
-
-        uint8 lastAttempt = playerStates[gameId][msg.sender].currentAttempt - 1;
-
-        // Get the last attempt's XOR result
-        euint128 lastEquationXor = attemptData[gameId][msg.sender][lastAttempt]
-            .equationXor;
-
-        (uint128 value, bool decrypted) = FHE.getDecryptResultSafe(
-            lastEquationXor
-        );
-        if (!decrypted) {
-            revert DecryptionNotReady(msg.sender, gameId);
-        }
-
-        return value;
+        return euint128.unwrap(lastEquationXor);
     }
 
     /**
-     * @notice Retrieves the decrypted equation XOR result and determines if player won
-     * @dev Checks if the lower 20 bits of the XOR result equal zero (indicating perfect match)
+     * @notice Verifies the client-provided decryption and mints the victory NFT if valid
+     * @dev The contract verifies the Threshold Network signature against the last
+     *      attempt's XOR ciphertext. Victory = lower 20 bits of the decrypted value == 0.
+     * @param decryptedValue The plaintext XOR value produced by decryptForTx
+     * @param decryptionProof The Threshold Network signature returned by decryptForTx
      */
-    function ClaimVictory() public {
+    function ClaimVictory(
+        uint128 decryptedValue,
+        bytes calldata decryptionProof
+    ) public {
         uint256 gameId = getCurrentGameId();
 
         if (playerStates[gameId][msg.sender].currentAttempt == 0) {
@@ -252,23 +237,20 @@ contract Equle is Ownable {
 
         uint8 lastAttempt = playerStates[gameId][msg.sender].currentAttempt - 1;
 
-        // Get the last attempt's XOR result
         euint128 lastEquationXor = attemptData[gameId][msg.sender][lastAttempt]
             .equationXor;
 
-        (uint128 value, bool decrypted) = FHE.getDecryptResultSafe(
-            lastEquationXor
+        FHE.verifyDecryptResult(
+            lastEquationXor,
+            decryptedValue,
+            decryptionProof
         );
-        if (!decrypted) {
-            revert DecryptionNotReady(msg.sender, gameId);
-        }
 
-        uint128 mask = (1 << 20) - 1; // Creates mask 0x000FFFFF (20 bits of 1s)
-        uint128 lower20Bits = value & mask;
+        uint128 mask = (1 << 20) - 1;
+        uint128 lower20Bits = decryptedValue & mask;
         bool hasWon = (lower20Bits == 0);
         playerStates[gameId][msg.sender].hasWon = hasWon;
 
-        // Handle NFT minting/updating for victory
         if (hasWon) {
             equleNFT.mintOrUpdateNFT(msg.sender, gameId, lastAttempt + 1);
             emit NFTMinted(

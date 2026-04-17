@@ -3,7 +3,8 @@ import { usePublicClient, useReadContract, useChainId, useAccount } from "wagmi"
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from "../../../contract/contract";
 import { useGameStore } from "../store/gameStore";
 import type { GameState } from "../store/gameStore";
-import { cofhejs, FheTypes } from "cofhejs/web";
+import { FheTypes } from "@cofhe/sdk";
+import { cofheClient } from "../services/cofhe-client";
 import { analyzeXorResult, extractOriginalEquation } from "../../../utils";
 import { usePlayerAttempt } from "./usePlayerAttempt";
 
@@ -38,7 +39,7 @@ export const useRefetchPlayerAttempt = (attemptIndex: number, enabled: boolean =
   const { address: account } = useAccount();
   const { refetch: refetchPlayerAttempt } = usePlayerAttempt(account, attemptIndex);
   const lastFetchTime = useRef<number>(0);
-  const [attemptData, setAttemptData] = useState<[bigint, bigint, bigint, bigint] | null>(null);
+  const [attemptData, setAttemptData] = useState<[`0x${string}`, `0x${string}`, `0x${string}`, `0x${string}`] | null>(null);
   const [isLoading, setIsLoading] = useState(false);
 
   useEffect(() => {
@@ -65,12 +66,12 @@ export const useRefetchPlayerAttempt = (attemptIndex: number, enabled: boolean =
         const result = await refetchPlayerAttempt();
         
         if (result.data && Array.isArray(result.data) && result.data.length === 4) {
-          const [, , equationXor, encryptedResultFeedback] = result.data as [bigint, bigint, bigint, bigint];
+          const [, , equationXor, encryptedResultFeedback] = result.data as [`0x${string}`, `0x${string}`, `0x${string}`, `0x${string}`];
           
           // Check if we have valid XOR data
-          if (equationXor && equationXor !== BigInt(0)) {
+          if (equationXor && !/^0x0+$/.test(equationXor)) {
             console.log("Valid attempt data found");
-            setAttemptData(result.data as [bigint, bigint, bigint, bigint]);
+            setAttemptData(result.data as [`0x${string}`, `0x${string}`, `0x${string}`, `0x${string}`]);
           }
         }
       } catch (error) {
@@ -96,7 +97,7 @@ export function useGameSync(address?: `0x${string}`, gameId?: number | null) {
     address: CONTRACT_ADDRESS as `0x${string}`,
     abi: CONTRACT_ABI,
     functionName: "getPlayerGameState",
-    args: address && gameId ? [gameId, address] : undefined,
+    args: address && gameId ? [BigInt(gameId), address] : undefined,
   });
 
   // Player attempt hook for refetching attempt data
@@ -110,7 +111,7 @@ export function useGameSync(address?: `0x${string}`, gameId?: number | null) {
   const readAttempt = useCallback(
     async (
       attemptIndex: number
-    ): Promise<[bigint, bigint, bigint, bigint] | null> => {
+    ): Promise<[`0x${string}`, `0x${string}`, `0x${string}`, `0x${string}`] | null> => {
       if (
         !publicClient ||
         !address ||
@@ -124,8 +125,8 @@ export function useGameSync(address?: `0x${string}`, gameId?: number | null) {
           address: CONTRACT_ADDRESS as `0x${string}`,
           abi: CONTRACT_ABI,
           functionName: "getPlayerAttempt",
-          args: [gameId, address, attemptIndex],
-        })) as [bigint, bigint, bigint, bigint];
+          args: [BigInt(gameId), address, attemptIndex],
+        })) as [`0x${string}`, `0x${string}`, `0x${string}`, `0x${string}`];
         return result;
       } catch (_e) {
         return null;
@@ -134,13 +135,16 @@ export function useGameSync(address?: `0x${string}`, gameId?: number | null) {
     [publicClient, address, gameId]
   );
 
-  // CoFHE unsealing utility function
+  // CoFHE unsealing utility. Wraps the new SDK `decryptForView` behind a result
+  // envelope to minimize downstream changes in consumers.
   const unsealValue = useCallback(
-    async (encryptedValue: bigint, fheType: FheTypes) => {
+    async (
+      ctHash: `0x${string}`,
+      fheType: FheTypes
+    ): Promise<{ success: boolean; data: any; error?: unknown }> => {
       if (!address) throw new Error("Address not available");
 
-      // Validate encrypted value is not null/undefined/0
-      if (!encryptedValue || encryptedValue === BigInt(0)) {
+      if (!ctHash || /^0x0+$/.test(ctHash)) {
         return {
           success: false,
           data: null,
@@ -148,25 +152,24 @@ export function useGameSync(address?: `0x${string}`, gameId?: number | null) {
         };
       }
 
-      const permitResult = cofhejs.getPermit();
-      if (!permitResult?.success || !permitResult?.data) {
-        return {
-          success: false,
-          data: null,
-          error: new Error("CoFHE permit not available"),
-        };
+      try {
+        const active = cofheClient.permits.getActivePermit();
+        if (!active) {
+          return {
+            success: false,
+            data: null,
+            error: new Error("CoFHE permit not available"),
+          };
+        }
+      } catch (error) {
+        return { success: false, data: null, error };
       }
 
-      const permit = permitResult.data;
-
       try {
-        const unsealedValue = await cofhejs.unseal(
-          encryptedValue,
-          fheType,
-          address,
-          permit.getHash()
-        );
-        return unsealedValue;
+        const data = await cofheClient
+          .decryptForView(ctHash, fheType)
+          .execute();
+        return { success: true, data };
       } catch (error) {
         return { success: false, data: null, error };
       }
@@ -185,7 +188,7 @@ export function useGameSync(address?: `0x${string}`, gameId?: number | null) {
       return null;
     }
 
-    const result = playerGameStateData as [bigint, boolean];
+    const result = playerGameStateData as unknown as [number, boolean];
 
     if (!Array.isArray(result) || result.length !== 2) {
       console.error("Invalid player game state data format:", result);
@@ -237,11 +240,12 @@ export function useGameSync(address?: `0x${string}`, gameId?: number | null) {
             ] = result;
 
             // Check if we have valid encrypted data before attempting to unseal
+            const isZero = (h: `0x${string}`) => /^0x0+$/.test(h);
             if (
-              equationGuess === BigInt(0) &&
-              resultGuess === BigInt(0) &&
-              equationXor === BigInt(0) &&
-              encryptedResultFeedback === BigInt(0)
+              isZero(equationGuess) &&
+              isZero(resultGuess) &&
+              isZero(equationXor) &&
+              isZero(encryptedResultFeedback)
             ) {
               continue;
             }
@@ -253,10 +257,10 @@ export function useGameSync(address?: `0x${string}`, gameId?: number | null) {
               unsealedXor,
               unsealedResultFeedback,
             ] = await Promise.all([
-              unsealValue(equationGuess as bigint, FheTypes.Uint128),
-              unsealValue(resultGuess as bigint, FheTypes.Uint8),
-              unsealValue(equationXor as bigint, FheTypes.Uint128),
-              unsealValue(encryptedResultFeedback as bigint, FheTypes.Uint8),
+              unsealValue(equationGuess, FheTypes.Uint128),
+              unsealValue(resultGuess, FheTypes.Uint8),
+              unsealValue(equationXor, FheTypes.Uint128),
+              unsealValue(encryptedResultFeedback, FheTypes.Uint8),
             ]);
 
             // Check if unsealing was successful
@@ -369,7 +373,7 @@ export function useGameSync(address?: `0x${string}`, gameId?: number | null) {
       attemptIndex: number,
       maxAttempts: number = 10,
       delayMs: number = 1000
-    ): Promise<[bigint, bigint, bigint, bigint] | null> => {
+    ): Promise<[`0x${string}`, `0x${string}`, `0x${string}`, `0x${string}`] | null> => {
       for (let attempt = 0; attempt < maxAttempts; attempt++) {
         try {
           console.log(
@@ -390,16 +394,16 @@ export function useGameSync(address?: `0x${string}`, gameId?: number | null) {
             result.data.length === 4
           ) {
             const [, , equationXor] = result.data as [
-              bigint,
-              bigint,
-              bigint,
-              bigint
+              `0x${string}`,
+              `0x${string}`,
+              `0x${string}`,
+              `0x${string}`
             ];
 
             // Check if we have valid XOR data
-            if (equationXor && equationXor !== BigInt(0)) {
+            if (equationXor && !/^0x0+$/.test(equationXor)) {
               console.log("Valid attempt data found");
-              return result.data as [bigint, bigint, bigint, bigint];
+              return result.data as [`0x${string}`, `0x${string}`, `0x${string}`, `0x${string}`];
             }
           }
 

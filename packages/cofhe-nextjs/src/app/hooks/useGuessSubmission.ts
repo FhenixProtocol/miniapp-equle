@@ -1,7 +1,8 @@
 import { useState, useEffect } from "react";
 import { useWriteContract } from "wagmi";
 import { CONTRACT_ADDRESS, CONTRACT_ABI } from "../../../contract/contract";
-import { cofhejs, Encryptable } from "cofhejs/web";
+import { Encryptable } from "@cofhe/sdk";
+import { cofheClient } from "../services/cofhe-client";
 import { equationToAllRotations } from "../../../utils";
 
 export function useGuessSubmission() {
@@ -113,20 +114,20 @@ export function useGuessSubmission() {
       console.log("All rotations (as BigInt):", allRotations.toString());
 
       // Encrypt the equation rotations
-      const encryptedEquation = await cofhejs.encrypt([
-        Encryptable.uint128(allRotations),
-      ] as const);
+      const [encryptedEquation] = await cofheClient
+        .encryptInputs([Encryptable.uint128(allRotations)])
+        .execute();
 
       // Encrypt the result
-      const encryptedResult = await cofhejs.encrypt([
-        Encryptable.uint16(BigInt(result)),
-      ] as const);
+      const [encryptedResult] = await cofheClient
+        .encryptInputs([Encryptable.uint16(BigInt(result))])
+        .execute();
 
       console.log("Encryption successful:", {
         equation,
         result,
-        encryptedEquation: encryptedEquation.data?.[0] || "no data",
-        encryptedResult: encryptedResult.data?.[0] || "no data",
+        encryptedEquation,
+        encryptedResult,
       });
 
       return {
@@ -173,19 +174,18 @@ export function useGuessSubmission() {
       const { encryptedEquation, encryptedResult, result } = encryptedData;
 
       console.log("Submitting encrypted guess to contract...");
-      console.log("encryptedEquation", encryptedEquation.data?.[0]);
-      console.log("encryptedResult", encryptedResult.data?.[0]);
 
       // Clear any previous write errors
       reset();
 
       try {
-        // Submit to contract
+        // Submit to contract - cast to any because the SDK's EncryptedUint*Input
+        // `signature` field is typed as string, but wagmi's ABI expects `0x${string}`.
         writeContract({
           address: CONTRACT_ADDRESS as `0x${string}`,
           abi: CONTRACT_ABI,
           functionName: "guess",
-          args: [encryptedEquation.data?.[0], encryptedResult.data?.[0]],
+          args: [encryptedEquation as any, encryptedResult as any],
         });
 
         console.log("Contract transaction initiated");

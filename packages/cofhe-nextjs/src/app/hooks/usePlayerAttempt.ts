@@ -11,7 +11,7 @@ export function usePlayerAttempt(
     gameId !== null &&
     gameId !== undefined &&
     attemptIndex !== undefined
-      ? [gameId, address, attemptIndex]
+      ? [BigInt(gameId), address, attemptIndex]
       : undefined;
 
   const { data, refetch } = useReadContract({
